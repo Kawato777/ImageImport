@@ -5,6 +5,9 @@ from flask_bootstrap import Bootstrap
 app = Flask(__name__)
 bootstrap = Bootstrap(app)
 
-@app.route("/")
+@app.route("/", methods = ["GET","POST"])
 def index():
-    return render_template("index.html")
+    if(request.method == "POST"):
+        return render_template("finding.html")
+    else:
+        return render_template("index.html")
