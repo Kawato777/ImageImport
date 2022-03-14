@@ -1,14 +1,48 @@
 {% extends "base.html" %}
-{% block title %}捜索中ページ{% endblock %}
+{% block title %}結果ページ{% endblock %}
 {% block content %}
+    <script>
+        /* 1枚ずつ */
+        /** URLから自動ダウンロードする関数 */ 
+        function downloadFromUrlAutomatically(url, fileName){
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'blob';
+        xhr.onload = function(e){
+            if(this.status == 200){
+                var urlUtil = window.URL || window.webkitURL;
+                var imgUrl = urlUtil.createObjectURL(this.response);
+                var link = $('<a>', {
+                    href: imgUrl, download: fileName, 
+                });
+                $('body').append(link);
+                link[0].click();
+                link.remove();
+            }
+        };
+        xhr.send();
+        }
+
+        /* 一括ダウンロード */
+        // jszip を CDN から読み込み
+        function loadJSZipFromCDN()
+        {
+            let script = document.createElement("script");
+            script.src = "https://cdn.jsdelivr.net/npm/jszip@3.2.1/dist/jszip.js";
+            document.head.append(script);
+        }
+        loadJSZipFromCDN();
+    </script>
+
     <div class="d-flex justify-content-center mt-2">
         <a href="{{ url }}" role="button" class="fs-2 text-dark">このリンク</a>
         <h2 class="mt-1 text-dark">の画像は{{ imgLen }}枚です。</h2>
     </div>
+
+    <!-- 写真表示 -->
     {% if imgLen != 0 %}
-    {% set i = 0 %}
     <div class="d-flex justify-content-center mt-2">
-        <button type="button" class="btn btn-outline-success ">一括ダウンロード</button>
+        <button type="button" class="btn btn-outline-success" id="allDownloadBtn">一括ダウンロード</button>
     </div>
 
     <div class="d-flex justify-content-around flex-wrap mt-2">
@@ -17,9 +51,8 @@
             {% for num2 in range(3) %}
                 <figure class="figure d-flex justify-content-around flex-column align-items-center">
                     <img src="{{ images[num * 3 + num2] }}" class="figure-img rounded" style="max-width: 100%; height:50%;" alt="...">
-                    <button type="button" class="btn btn-outline-primary">ダウンロード</button>
+                    <button type="button" onclick="downloadFromUrlAutomatically('{{ images[num * 3 + num2] }}', '{{ num * 3 + num2 }}')" class="btn btn-outline-primary download-btn">ダウンロード</button>
                 </figure>
-                {% set i = i + 1 %}
             {% endfor %}
             </div>
         {% endfor %}
@@ -28,42 +61,93 @@
             {% for num3 in range(imgLen % 3) %}
                 <figure class="figure d-flex justify-content-around flex-column align-items-center">
                     <img src="{{ images[(imgLen - imgLen % 3) + num3] }}" class="figure-img rounded" style="max-width: 100%; height:50%;" alt="...">
-                    <button type="button" class="btn btn-outline-primary">ダウンロード</button>
+                    <button type="button" onclick="downloadFromUrlAutomatically('{{ images[(imgLen - imgLen % 3) + num3] }}','{{ (imgLen - imgLen % 3) + num3 }}')" class="btn btn-outline-primary">ダウンロード</button>
                 </figure>
-                {% set i = i + 1 %}
             {% endfor %}
         </div>
-        <!-- <div class="d-flex justify-content-around">
-            <figure class="figure d-flex justify-content-around flex-column align-items-center">
-                <img src="https://dekiru.net/upload_docs/img/3523600.jpg" class="figure-img rounded" style="max-width: 100%; height:50%;" alt="...">
-                <button type="button" class="btn btn-outline-primary">ダウンロード</button>
-            </figure>
-            <figure class="figure d-flex justify-content-around flex-column align-items-center">
-                <img src="https://dekiru.net/upload_docs/img/3523600.jpg" class="figure-img rounded" style="max-width: 100%; height:50%;" alt="...">
-                <button type="button" class="btn btn-outline-primary">ダウンロード</button>
-            </figure>
-            <figure class="figure d-flex justify-content-around flex-column align-items-center">
-                <img src="https://dekiru.net/upload_docs/img/3523600.jpg" class="figure-img rounded" style="max-width: 100%; height:50%;" alt="...">
-                <button type="button" class="btn btn-outline-primary">ダウンロード</button>
-            </figure>
-        </div>        
-        <div class="d-flex justify-content-around">
-            <figure class="figure d-flex justify-content-around flex-column align-items-center">
-                <img src="https://dekiru.net/upload_docs/img/3523600.jpg" class="figure-img rounded" style="max-width: 100%; height:50%;" alt="...">
-                <button type="button" class="btn btn-outline-primary">ダウンロード</button>
-            </figure>
-            <figure class="figure d-flex justify-content-around flex-column align-items-center">
-                <img src="https://dekiru.net/upload_docs/img/3523600.jpg" class="figure-img rounded" style="max-width: 100%; height:50%;" alt="...">
-                <button type="button" class="btn btn-outline-primary">ダウンロード</button>
-            </figure>
-            <figure class="figure d-flex justify-content-around flex-column align-items-center">
-                <img src="https://dekiru.net/upload_docs/img/3523600.jpg" class="figure-img rounded" style="max-width: 100%; height:50%;" alt="...">
-                <button type="button" class="btn btn-outline-primary">ダウンロード</button>
-            </figure>
-        </div>         -->
     </div>
+
+    <script>
+        // 一括ダウンロードボタンの追加
+        document.getElementById("allDownloadBtn").addEventListener("click", downloadImages);
+
+        // 画像の一括ダウンロード
+        async function downloadImages() {
+            // 画像 URL
+            let sources1 = []
+            {% for image in images %}
+                sources1.push("{{ image }}")
+            {% endfor %}
+            console.log(sources1.length);
+
+            const sources = [].slice.call(sources1);
+            console.log(sources.length)
+
+            // JSZip に追加するために非同期リクエストを Promise で wrap
+            const imagePromises = sources.map(
+                (src, i) => new Promise((resolve, reject) => {
+                    let xhr = new XMLHttpRequest();
+                    xhr.open('GET', src, true);
+                    xhr.responseType = "blob";
+                    xhr.onload = function() {
+                        // ファイル名とデータ返却
+                        const fileName = src.slice(src.lastIndexOf("/") + 1);
+                        resolve({ data: this.response, fileName: fileName });
+                    };
+                    // reject だと await Promise.all を抜けてしまう
+                    // => resolve でデータ無し
+                    xhr.onerror = () => resolve({ data: null });
+                    xhr.onabort = () => resolve({ data: null });
+                    xhr.ontimeout = () => resolve({ data: null });
+                    xhr.send();
+                })
+            );
+
+            // すべての画像が取得できたら zip 生成
+            const images = await Promise.all(imagePromises);
+            generateImagesZip(images);
+        }
+
+        // zip ファイルで画像をダウンロード
+        function generateImagesZip(images) {
+            let zip = new JSZip();
+        
+            // フォルダ作成
+            const folderName = "Images";
+            let folder = zip.folder(folderName);
+        
+            // フォルダ下に画像を格納
+            images.forEach(image => {
+            if (image.data && image.fileName) {
+                folder.file(image.fileName, image.data)
+            }
+            });
+        
+            // zip を生成
+            zip.generateAsync({ type: "blob" }).then(blob => {
+        
+            // ダウンロードリンクを 生成
+            let dlLink = document.createElement("a");
+        
+            // blob から URL を生成
+            const dataUrl = URL.createObjectURL(blob);
+            dlLink.href = dataUrl;
+            dlLink.download = `${folderName}.zip`;
+        
+            // 設置/クリック/削除
+            document.body.insertAdjacentElement("beforeEnd", dlLink);
+            dlLink.click();
+            dlLink.remove();
+        
+            // オブジェクト URL の開放
+            setTimeout(function() {
+                window.URL.revokeObjectURL(dataUrl);
+            }, 1000);
+            });
+        }
+    </script>
+
     {% endif %}
-    <!-- 写真表示 -->
     
     <div class="d-flex justify-content-center mt-2 mb-2">
         <a role="button" class="btn btn-outline-dark" href="/">ホームへ</a>
