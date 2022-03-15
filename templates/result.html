@@ -24,14 +24,70 @@
         }
 
         /* 一括ダウンロード */
-        // jszip を CDN から読み込み
+        /* // jszip を CDN から読み込み
         function loadJSZipFromCDN()
         {
             let script = document.createElement("script");
             script.src = "https://cdn.jsdelivr.net/npm/jszip@3.2.1/dist/jszip.js";
             document.head.append(script);
         }
-        loadJSZipFromCDN();
+        loadJSZipFromCDN(); */
+
+        // 画像 URL
+        let sources1 = []
+        {% for image in images %}
+            sources1.push("{{ image }}")
+        {% endfor %}
+
+        const sources = [].slice.call(sources1);
+        
+        // すべての画像が取得できたら zip 生成
+        // JSZip に追加するために非同期リクエストを Promise で wrap
+        let images = []
+        sources.map(
+                // (src, i) => new Promise((resolve, reject) => {
+            (src, i) => {
+                let xhr = new XMLHttpRequest();
+                xhr.open('GET', src, true);
+                xhr.responseType = "blob";
+                xhr.onload = function(e) {
+                    if(this.status == 200){
+                        /*var urlUtil = window.URL || window.webkitURL;
+                        var imgUrl = urlUtil.createObjectURL(this.response);
+                        images.push( {data: imgUrl,fileName: i} ) */
+                        // ファイル名とデータ返却
+                        const fileName = src.slice(src.lastIndexOf("/") + 1);
+                        images[i] = { data: this.response, fileName: fileName };
+                    }
+                };
+                // reject だと await Promise.all を抜けてしまう
+                // => resolve でデータ無し
+                // xhr.onerror = () => resolve({ data: null });
+                // xhr.onabort = () => resolve({ data: null });
+                // xhr.ontimeout = () => resolve({ data: null });
+                xhr.send();
+            }
+        )
+
+        let zip = new JSZip();
+        // フォルダ作成
+        const folderName = "Images";
+        let folder = zip.folder(folderName);
+
+        window.setTimeout(makeZip,50 * {{ imgLen }})
+
+        function makeZip(){
+            let i = 0
+            // フォルダ下に画像を格納
+            images.forEach(function(element){
+                const result = element.data.type.split("/")
+                folder.file(String(i) + "." + result[1], element.data)
+                i += 1
+            });
+
+            // console.log(zip)
+            // console.log(folder)
+        }
     </script>
 
     <div class="d-flex justify-content-center mt-2">
@@ -72,77 +128,32 @@
         document.getElementById("allDownloadBtn").addEventListener("click", downloadImages);
 
         // 画像の一括ダウンロード
-        async function downloadImages() {
-            // 画像 URL
-            let sources1 = []
-            {% for image in images %}
-                sources1.push("{{ image }}")
-            {% endfor %}
-            console.log(sources1.length);
-
-            const sources = [].slice.call(sources1);
-            console.log(sources.length)
-
-            // JSZip に追加するために非同期リクエストを Promise で wrap
-            const imagePromises = sources.map(
-                (src, i) => new Promise((resolve, reject) => {
-                    let xhr = new XMLHttpRequest();
-                    xhr.open('GET', src, true);
-                    xhr.responseType = "blob";
-                    xhr.onload = function() {
-                        // ファイル名とデータ返却
-                        const fileName = src.slice(src.lastIndexOf("/") + 1);
-                        resolve({ data: this.response, fileName: fileName });
-                    };
-                    // reject だと await Promise.all を抜けてしまう
-                    // => resolve でデータ無し
-                    xhr.onerror = () => resolve({ data: null });
-                    xhr.onabort = () => resolve({ data: null });
-                    xhr.ontimeout = () => resolve({ data: null });
-                    xhr.send();
-                })
-            );
-
-            // すべての画像が取得できたら zip 生成
-            const images = await Promise.all(imagePromises);
-            generateImagesZip(images);
+        function downloadImages() {
+            generateImagesZip(images)
         }
 
         // zip ファイルで画像をダウンロード
         function generateImagesZip(images) {
-            let zip = new JSZip();
-        
-            // フォルダ作成
-            const folderName = "Images";
-            let folder = zip.folder(folderName);
-        
-            // フォルダ下に画像を格納
-            images.forEach(image => {
-            if (image.data && image.fileName) {
-                folder.file(image.fileName, image.data)
-            }
-            });
-        
             // zip を生成
             zip.generateAsync({ type: "blob" }).then(blob => {
-        
-            // ダウンロードリンクを 生成
-            let dlLink = document.createElement("a");
-        
-            // blob から URL を生成
-            const dataUrl = URL.createObjectURL(blob);
-            dlLink.href = dataUrl;
-            dlLink.download = `${folderName}.zip`;
-        
-            // 設置/クリック/削除
-            document.body.insertAdjacentElement("beforeEnd", dlLink);
-            dlLink.click();
-            dlLink.remove();
-        
-            // オブジェクト URL の開放
-            setTimeout(function() {
-                window.URL.revokeObjectURL(dataUrl);
-            }, 1000);
+
+                // ダウンロードリンクを 生成
+                let dlLink = document.createElement("a");
+            
+                // blob から URL を生成
+                const dataUrl = URL.createObjectURL(blob);
+                dlLink.href = dataUrl;
+                dlLink.download = `${folderName}.zip`;
+            
+                // 設置/クリック/削除
+                document.body.insertAdjacentElement("beforeEnd", dlLink);
+                dlLink.click();
+                dlLink.remove();
+            
+                // オブジェクト URL の開放
+                setTimeout(function() {
+                    window.URL.revokeObjectURL(dataUrl);
+                }, 1000);
             });
         }
     </script>
