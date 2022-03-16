@@ -25,7 +25,18 @@ def index():
             time = now.strftime("%Y%m%d")
 
             # 画像取得
-            response = requests.get(url)
+            proxyDict = { 
+                'http'  : "add http proxy", 
+                'https' : "add https proxy"
+            }
+
+
+            headers = {
+                "Accept-Language" : "en-US,en;q=0.5",
+                "User-Agent": "Defined",
+            }
+
+            response = requests.get(url,proxies=proxyDict,headers=headers)
             soup = BeautifulSoup(response.text,'lxml')
             allImages = soup.findAll("img")
             images = []
