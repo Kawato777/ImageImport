@@ -34,10 +34,11 @@
         loadJSZipFromCDN(); */
 
         // 画像 URL
-        let sources1 = []
-        {% for image in images %}
-            sources1.push("{{ image }}")
-        {% endfor %}
+        let sources1 = {% images %};
+        
+        //{% for image in images %}
+        //    sources1.push("{{ image }}")
+        //{% endfor %}
 
         const sources = [].slice.call(sources1);
         
@@ -74,7 +75,7 @@
         const folderName = "Images";
         let folder = zip.folder(folderName);
 
-        window.setTimeout(makeZip,50 * {{ imgLen }})
+        window.setTimeout(makeZip,50 * {{ imgLen }});
 
         function makeZip(){
             let i = 0
