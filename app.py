@@ -30,7 +30,6 @@ def index():
                 'https' : "add https proxy"
             }
 
-
             headers = {
                 "Accept-Language" : "en-US,en;q=0.5",
                 "User-Agent": "Defined",
